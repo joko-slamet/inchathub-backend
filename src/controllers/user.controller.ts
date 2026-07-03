@@ -21,6 +21,12 @@ function parseId(id: unknown): string {
   return id;
 }
 
+function requireSelfOrAdmin(req: Request, id: string) {
+  if (req.user?.role !== Role.ADMIN && req.user?.sub !== id) {
+    throw new HttpError(403, "Insufficient permissions");
+  }
+}
+
 export const userController = {
   async list(_req: Request, res: Response) {
     const users = await userService.findAll();
@@ -29,6 +35,7 @@ export const userController = {
 
   async getById(req: Request, res: Response) {
     const id = parseId(req.params.id);
+    requireSelfOrAdmin(req, id);
     const user = await userService.findById(id);
     if (!user) throw new HttpError(404, "User not found");
     res.json(user);
@@ -51,7 +58,11 @@ export const userController = {
 
   async update(req: Request, res: Response) {
     const id = parseId(req.params.id);
+    requireSelfOrAdmin(req, id);
     const { name, email, password, phone, role } = req.body ?? {};
+    if (role !== undefined && req.user?.role !== Role.ADMIN) {
+      throw new HttpError(403, "Only admins can change roles");
+    }
     const user = await userService.update(id, {
       name,
       email,
