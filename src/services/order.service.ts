@@ -9,6 +9,24 @@ function generateMerchantOrderId(): string {
 }
 
 export const orderService = {
+  async findAllForAdmin() {
+    return prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        plan: { include: { translations: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  },
+
+  async findAllForUser(userId: string) {
+    return prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { plan: { include: { translations: true } } },
+    });
+  },
+
   async findById(id: string) {
     return prisma.order.findUnique({
       where: { id },

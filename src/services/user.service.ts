@@ -8,6 +8,10 @@ const publicSelect = {
   email: true,
   phone: true,
   role: true,
+  planExpiresAt: true,
+  activePlan: {
+    select: { id: true, key: true, translations: true },
+  },
   createdAt: true,
   updatedAt: true,
 } as const;

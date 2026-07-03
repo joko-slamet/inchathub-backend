@@ -5,6 +5,16 @@ import { duitkuService, type DuitkuCallbackPayload } from "../services/duitku.se
 import { parseId } from "../utils/ids";
 
 export const orderController = {
+  async list(_req: Request, res: Response) {
+    const orders = await orderService.findAllForAdmin();
+    res.json(orders);
+  },
+
+  async listMine(req: Request, res: Response) {
+    const orders = await orderService.findAllForUser(req.user!.sub);
+    res.json(orders);
+  },
+
   async paymentMethods(req: Request, res: Response) {
     const { planId } = req.query;
     if (typeof planId !== "string" || !planId) {
