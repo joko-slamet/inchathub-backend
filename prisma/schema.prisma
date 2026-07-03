@@ -29,3 +29,30 @@ model User {
 
   @@map("users")
 }
+
+model PricingPlan {
+  id            String                   @id @default(uuid()) @db.Uuid
+  key           String                   @unique
+  sortOrder     Int                      @default(0)
+  popular       Boolean                  @default(false)
+  originalPrice Int
+  price         Int
+  translations  PricingPlanTranslation[]
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@map("pricing_plans")
+}
+
+model PricingPlanTranslation {
+  id       String      @id @default(uuid()) @db.Uuid
+  planId   String      @db.Uuid
+  plan     PricingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  locale   String
+  name     String
+  tagline  String
+  features Json
+
+  @@unique([planId, locale])
+  @@map("pricing_plan_translations")
+}

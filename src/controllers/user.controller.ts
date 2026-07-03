@@ -2,9 +2,7 @@ import type { Request, Response } from "express";
 import { Role } from "../generated/prisma/enums";
 import { HttpError } from "../middlewares/errorHandler";
 import { userService } from "../services/user.service";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { parseId } from "../utils/ids";
 
 function parseRole(role: unknown): Role | undefined {
   if (role === undefined) return undefined;
@@ -12,13 +10,6 @@ function parseRole(role: unknown): Role | undefined {
     throw new HttpError(400, `role must be one of: ${Object.values(Role).join(", ")}`);
   }
   return role as Role;
-}
-
-function parseId(id: unknown): string {
-  if (typeof id !== "string" || !UUID_RE.test(id)) {
-    throw new HttpError(400, "Invalid id format, expected a UUID");
-  }
-  return id;
 }
 
 function requireSelfOrAdmin(req: Request, id: string) {
