@@ -9,9 +9,20 @@ import { getJakartaParts } from "../utils/jakarta-time";
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "articles");
 
 export const articlesService = {
+  // imageUrl is returned exactly as stored — just the relative path (e.g.
+  // "/uploads/articles/x.png"). The frontend prepends its own
+  // NEXT_PUBLIC_BACKEND_URL to build the full URL, so this API never needs
+  // to know which public host it's being reached through.
   findAll() {
     return prisma.article.findMany({
       orderBy: { generatedAt: "desc" },
+      include: { translations: true },
+    });
+  },
+
+  findBySlug(slug: string) {
+    return prisma.article.findUnique({
+      where: { slug },
       include: { translations: true },
     });
   },

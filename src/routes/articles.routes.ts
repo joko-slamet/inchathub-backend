@@ -6,8 +6,21 @@ import { asyncHandler } from "../utils/asyncHandler";
 
 export const articlesRouter = Router();
 
-articlesRouter.use(authenticate, authorize(Role.ADMIN));
+// Public — read by the public blog pages. Must be registered before the
+// admin-only routes below so they aren't caught by `authenticate`.
+articlesRouter.get("/public", asyncHandler(articlesController.listPublic));
+articlesRouter.get("/public/:slug", asyncHandler(articlesController.getPublicBySlug));
 
-articlesRouter.get("/", asyncHandler(articlesController.list));
-articlesRouter.post("/generate-now", asyncHandler(articlesController.generateNow));
-articlesRouter.delete("/:id", asyncHandler(articlesController.remove));
+articlesRouter.get("/", authenticate, authorize(Role.ADMIN), asyncHandler(articlesController.list));
+articlesRouter.post(
+  "/generate-now",
+  authenticate,
+  authorize(Role.ADMIN),
+  asyncHandler(articlesController.generateNow),
+);
+articlesRouter.delete(
+  "/:id",
+  authenticate,
+  authorize(Role.ADMIN),
+  asyncHandler(articlesController.remove),
+);

@@ -82,7 +82,7 @@ export const openrouterService = {
       choices?: { message?: { content?: string } }[];
       error?: { message?: string };
     } | null;
-
+    console.log(body)
     if (!res.ok) {
       throw new HttpError(502, body?.error?.message ?? "Failed to generate article text via OpenRouter");
     }
@@ -149,6 +149,10 @@ export const openrouterService = {
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(path.join(UPLOADS_DIR, filename), Buffer.from(base64, "base64"));
 
-    return `${env.apiPublicUrl}/uploads/articles/${filename}`;
+    // Store just the relative path — the absolute URL is built at read time
+    // (see articles.service.ts) using whatever API_PUBLIC_URL is *currently*
+    // configured, so existing articles don't break if that value changes
+    // later (e.g. a dev tunnel URL rotating).
+    return `/uploads/articles/${filename}`;
   },
 };
