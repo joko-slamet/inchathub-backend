@@ -132,3 +132,48 @@ model ArticleTranslation {
   @@unique([articleId, locale])
   @@map("article_translations")
 }
+
+model CompanyProfile {
+  id           String                      @id @default(uuid()) @db.Uuid
+  mapSrc       String
+  translations CompanyProfileTranslation[]
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+
+  @@map("company_profiles")
+}
+
+model CompanyProfileTranslation {
+  id               String         @id @default(uuid()) @db.Uuid
+  companyProfileId String         @db.Uuid
+  companyProfile   CompanyProfile @relation(fields: [companyProfileId], references: [id], onDelete: Cascade)
+  locale           String
+  paragraphs       String[]
+  visionEyebrow    String
+  missionEyebrow   String
+  visionMain       String
+  visionAccent     String
+  missionItems     Json
+  contactInfoCards Json
+
+  @@unique([companyProfileId, locale])
+  @@map("company_profile_translations")
+}
+
+model SiteSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  locale      String   @unique
+  hero        Json
+  problem     Json
+  omnichannel Json
+  aiCrm       Json
+  whyChatHub  Json
+  industries  Json
+  closingCta  Json
+  faq         Json
+  footer      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("site_settings")
+}
