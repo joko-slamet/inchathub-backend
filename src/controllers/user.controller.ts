@@ -24,6 +24,11 @@ export const userController = {
     res.json(users);
   },
 
+  async listCustomers(_req: Request, res: Response) {
+    const customers = await userService.findActiveCustomers();
+    res.json(customers);
+  },
+
   async getById(req: Request, res: Response) {
     const id = parseId(req.params.id);
     requireSelfOrAdmin(req, id);

@@ -21,6 +21,15 @@ export const userService = {
     return prisma.user.findMany({ orderBy: { id: "asc" }, select: publicSelect });
   },
 
+  // Customers with a currently-active plan (purchased and not yet expired).
+  findActiveCustomers() {
+    return prisma.user.findMany({
+      where: { activePlanId: { not: null }, planExpiresAt: { gt: new Date() } },
+      orderBy: { planExpiresAt: "desc" },
+      select: publicSelect,
+    });
+  },
+
   findById(id: string) {
     return prisma.user.findUnique({ where: { id }, select: publicSelect });
   },
