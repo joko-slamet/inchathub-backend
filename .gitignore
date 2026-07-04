@@ -4,3 +4,7 @@ dist
 .env
 
 /src/generated/prisma
+
+# AI-generated article images
+/uploads/*
+!/uploads/.gitkeep
