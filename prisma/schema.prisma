@@ -177,3 +177,14 @@ model SiteSetting {
 
   @@map("site_settings")
 }
+
+model ContactSubmission {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String
+  phone     String?
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("contact_submissions")
+}
