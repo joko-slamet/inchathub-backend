@@ -9,10 +9,15 @@ function required(key: string): string {
 }
 
 const duitkuEnv = process.env.DUITKU_ENV === "production" ? "production" : "sandbox";
+const databaseUrl = required("DATABASE_URL");
 
 export const env = {
   port: Number(process.env.PORT ?? 4000),
-  databaseUrl: required("DATABASE_URL"),
+  databaseUrl,
+  // @prisma/adapter-pg connects via `pg`, which (unlike Prisma's old query
+  // engine) does not read the `?schema=` query param itself, so it must be
+  // passed explicitly to PrismaPg's `schema` option.
+  databaseSchema: new URL(databaseUrl).searchParams.get("schema") ?? "public",
   jwtSecret: required("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:3000",

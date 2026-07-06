@@ -5,7 +5,9 @@ import { Role } from "../src/generated/prisma/enums";
 import { hashPassword } from "../src/utils/password";
 import { pricingPlans } from "./seed-data/pricing-plans";
 
-const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
+const directUrl = process.env.DIRECT_URL!;
+const schema = new URL(directUrl).searchParams.get("schema") ?? "public";
+const adapter = new PrismaPg({ connectionString: directUrl }, { schema });
 const prisma = new PrismaClient({ adapter });
 
 async function seedAdmin() {
