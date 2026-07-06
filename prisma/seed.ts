@@ -5,10 +5,13 @@ import { Role } from "../src/generated/prisma/enums";
 import { hashPassword } from "../src/utils/password";
 import { pricingPlans } from "./seed-data/pricing-plans";
 
-const databaseUrl = process.env.DATABASE_URL!;
+const url = new URL(process.env.DATABASE_URL!);
+const needsSsl = url.searchParams.get("sslmode") !== null && url.searchParams.get("sslmode") !== "disable";
+url.searchParams.delete("sslmode");
+
 const adapter = new PrismaPg({
-  connectionString: databaseUrl,
-  ...(databaseUrl.includes("sslmode=require") && { ssl: { rejectUnauthorized: false } }),
+  connectionString: url.toString(),
+  ...(needsSsl && { ssl: { rejectUnauthorized: false } }),
 });
 const prisma = new PrismaClient({ adapter });
 
