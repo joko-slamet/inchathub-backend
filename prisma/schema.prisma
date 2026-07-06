@@ -21,18 +21,20 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(uuid()) @db.Uuid
-  name          String
-  email         String    @unique
-  password      String
-  phone         String?
-  role          Role      @default(USER)
-  activePlanId  String?   @db.Uuid
-  activePlan    PricingPlan? @relation(fields: [activePlanId], references: [id])
-  planExpiresAt DateTime?
-  orders        Order[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                           String       @id @default(uuid()) @db.Uuid
+  name                         String
+  email                        String       @unique
+  password                     String
+  phone                        String?
+  role                         Role         @default(USER)
+  activePlanId                 String?      @db.Uuid
+  activePlan                   PricingPlan? @relation(fields: [activePlanId], references: [id])
+  planExpiresAt                DateTime?
+  resetPasswordTokenHash       String?      @unique
+  resetPasswordTokenExpiresAt  DateTime?
+  orders                       Order[]
+  createdAt                    DateTime     @default(now())
+  updatedAt                    DateTime     @updatedAt
 
   @@map("users")
 }

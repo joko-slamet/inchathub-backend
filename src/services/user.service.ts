@@ -38,6 +38,28 @@ export const userService = {
     return prisma.user.findUnique({ where: { email } });
   },
 
+  findByResetTokenHash(hash: string) {
+    return prisma.user.findFirst({
+      where: { resetPasswordTokenHash: hash, resetPasswordTokenExpiresAt: { gt: new Date() } },
+    });
+  },
+
+  setResetToken(id: string, tokenHash: string, expiresAt: Date) {
+    return prisma.user.update({
+      where: { id },
+      data: { resetPasswordTokenHash: tokenHash, resetPasswordTokenExpiresAt: expiresAt },
+    });
+  },
+
+  async clearResetTokenAndSetPassword(id: string, newPassword: string) {
+    const password = await hashPassword(newPassword);
+    return prisma.user.update({
+      where: { id },
+      data: { password, resetPasswordTokenHash: null, resetPasswordTokenExpiresAt: null },
+      select: publicSelect,
+    });
+  },
+
   async create(data: {
     name: string;
     email: string;
