@@ -5,7 +5,11 @@ import { Role } from "../src/generated/prisma/enums";
 import { hashPassword } from "../src/utils/password";
 import { pricingPlans } from "./seed-data/pricing-plans";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL!;
+const adapter = new PrismaPg({
+  connectionString: databaseUrl,
+  ...(databaseUrl.includes("sslmode=require") && { ssl: { rejectUnauthorized: false } }),
+});
 const prisma = new PrismaClient({ adapter });
 
 async function seedAdmin() {
