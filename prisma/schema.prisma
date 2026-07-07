@@ -117,6 +117,8 @@ model Article {
   topic        String
   dayType      ArticleDayType
   imageUrl     String
+  seoScore     Int?
+  seoFeedback  String?
   translations ArticleTranslation[]
   generatedAt  DateTime             @default(now())
   createdAt    DateTime             @default(now())

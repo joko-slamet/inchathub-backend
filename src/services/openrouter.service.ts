@@ -105,6 +105,72 @@ export const openrouterService = {
     return { translations };
   },
 
+  // Separate call from generateArticle (fresh context, "reviewer" persona)
+  // rather than asking the writer model to grade its own output in the same
+  // completion — a model self-scoring inline tends to be overly generous.
+  async scoreArticleSeo({
+    title,
+    excerpt,
+    content,
+    topic,
+  }: {
+    title: string;
+    excerpt: string;
+    content: string[];
+    topic: string;
+  }): Promise<{ score: number; feedback: string }> {
+    requireConfigured();
+
+    const systemPrompt = [
+      "Kamu adalah SEO auditor untuk blog perusahaan. Tugasmu menilai SEO dari satu artikel yang SUDAH ditulis, bukan menulis ulang.",
+      "Nilai berdasarkan kriteria SEO berikut: (1) penempatan kata kunci utama di judul, paragraf pembuka, dan tersebar wajar di isi tanpa keyword-stuffing, (2) panjang & daya tarik judul untuk title tag (idealnya sekitar 50-60 karakter, mengandung kata kunci), (3) excerpt sebagai meta description (idealnya sekitar 120-160 karakter, ringkas, mengandung kata kunci), (4) struktur paragraf dan keterbacaan, (5) orisinalitas konten (tidak generik/template).",
+      "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
+      '{"score": number (0-100, skor SEO keseluruhan), "feedback": string (2-4 kalimat saran perbaikan SEO yang konkret dan actionable, dalam Bahasa Indonesia)}',
+    ].join(" ");
+
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        model: env.openrouter.textModel,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Topik: ${topic}\nJudul: ${title}\nExcerpt: ${excerpt}\nIsi artikel:\n${content.join("\n\n")}`,
+          },
+        ],
+      }),
+    });
+
+    const body = (await res.json().catch(() => null)) as {
+      choices?: { message?: { content?: string } }[];
+      error?: { message?: string };
+    } | null;
+
+    if (!res.ok) {
+      throw new HttpError(502, body?.error?.message ?? "Failed to score article SEO via OpenRouter");
+    }
+
+    const raw = body?.choices?.[0]?.message?.content;
+    if (!raw) throw new HttpError(502, "OpenRouter returned an empty SEO score response");
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new HttpError(502, "OpenRouter returned invalid JSON for the SEO score");
+    }
+
+    const { score, feedback } = parsed as { score?: unknown; feedback?: unknown };
+    if (typeof score !== "number" || typeof feedback !== "string") {
+      throw new HttpError(502, "OpenRouter SEO score response is missing required fields");
+    }
+
+    return { score: Math.max(0, Math.min(100, Math.round(score))), feedback };
+  },
+
   // Uses an image-output-capable model via the same chat completions endpoint
   // (modalities: ["image", "text"]). Verify this request/response shape
   // against current OpenRouter docs if the chosen model changes — image

@@ -35,6 +35,16 @@ export const articleGenerationService = {
     // The scheduler will simply try again at the next scheduled slot.
     const imageUrl = await openrouterService.generateImage({ title: primary.title, topic });
 
+    // Non-critical insight for the admin, not a requirement for the article
+    // to be valid — unlike the cover image, a scoring failure shouldn't stop
+    // the article from being saved.
+    const seo = await openrouterService
+      .scoreArticleSeo({ title: primary.title, excerpt: primary.excerpt, content: primary.content, topic })
+      .catch((err) => {
+        console.error("Failed to score article SEO:", err);
+        return null;
+      });
+
     const slug = await uniqueSlug(primary.title);
 
     return prisma.article.create({
@@ -43,6 +53,8 @@ export const articleGenerationService = {
         topic,
         dayType,
         imageUrl,
+        seoScore: seo?.score ?? null,
+        seoFeedback: seo?.feedback ?? null,
         translations: {
           create: draft.translations.map((t) => ({
             locale: t.locale,
