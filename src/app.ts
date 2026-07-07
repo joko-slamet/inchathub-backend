@@ -10,6 +10,12 @@ import { apiRouter } from "./routes";
 
 export const app = express();
 
+// Trust the first proxy hop (nginx/Cloudflare/tunnel in front of this app) so
+// req.ip reflects the real client IP from X-Forwarded-For — without this,
+// the rate limiters below would see every request as coming from the same
+// proxy IP and rate-limit all users collectively instead of individually.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.clientOrigin, credentials: true }));
 app.use(morgan("dev"));
