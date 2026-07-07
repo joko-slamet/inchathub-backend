@@ -1,4 +1,5 @@
-import { unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middlewares/errorHandler";
@@ -10,8 +11,14 @@ export const companyLogoService = {
     return prisma.companyLogo.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
   },
 
-  create(data: { name: string; imageUrl: string }) {
-    return prisma.companyLogo.create({ data });
+  async create(data: { name: string; buffer: Buffer; extension: string }) {
+    const filename = `${randomUUID()}.${data.extension}`;
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    await writeFile(path.join(UPLOADS_DIR, filename), data.buffer);
+
+    return prisma.companyLogo.create({
+      data: { name: data.name, imageUrl: `/uploads/logos/${filename}` },
+    });
   },
 
   async remove(id: string) {
