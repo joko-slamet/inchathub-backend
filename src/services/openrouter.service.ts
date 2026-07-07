@@ -58,6 +58,7 @@ export const openrouterService = {
       "Kamu adalah penulis konten untuk blog perusahaan ChatHub (platform omnichannel, AI chatbot, dan CRM).",
       `Tulis artikel blog berdasarkan topik yang diberikan, dalam ${ARTICLE_LOCALES.length} bahasa sekaligus: ${ARTICLE_LOCALES.join(", ")} (kode locale ISO).`,
       "Setiap bahasa harus jadi tulisan asli yang natural untuk penutur bahasa itu, bukan terjemahan kaku kata-per-kata.",
+      "Tulis dengan memperhatikan SEO: sertakan kata kunci utama (topik) di judul, di paragraf pembuka, dan sebar wajar di isi tanpa keyword-stuffing. Judul sebaiknya sekitar 50-60 karakter dan mengandung kata kunci. Excerpt berfungsi sebagai meta description, sebaiknya sekitar 120-160 karakter, ringkas, dan mengandung kata kunci. Jaga paragraf tetap ringkas dan mudah dibaca.",
       prompt,
       "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
       `{"translations": [{"locale": string (salah satu dari ${ARTICLE_LOCALES.join("/")}), "title": string, "excerpt": string (1-2 kalimat ringkasan), "content": string[] (4-6 paragraf isi artikel)}, ...]}`,
@@ -124,6 +125,7 @@ export const openrouterService = {
     const systemPrompt = [
       "Kamu adalah SEO auditor untuk blog perusahaan. Tugasmu menilai SEO dari satu artikel yang SUDAH ditulis, bukan menulis ulang.",
       "Nilai berdasarkan kriteria SEO berikut: (1) penempatan kata kunci utama di judul, paragraf pembuka, dan tersebar wajar di isi tanpa keyword-stuffing, (2) panjang & daya tarik judul untuk title tag (idealnya sekitar 50-60 karakter, mengandung kata kunci), (3) excerpt sebagai meta description (idealnya sekitar 120-160 karakter, ringkas, mengandung kata kunci), (4) struktur paragraf dan keterbacaan, (5) orisinalitas konten (tidak generik/template).",
+      "PENTING: jumlah karakter judul dan excerpt sudah dihitungkan secara pasti dan disertakan di pesan user (bukan perkiraan). Gunakan angka itu apa adanya untuk menilai kriteria (2) dan (3) — jangan mengira-ngira ulang panjangnya sendiri dari teks.",
       "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
       '{"score": number (0-100, skor SEO keseluruhan), "feedback": string (2-4 kalimat saran perbaikan SEO yang konkret dan actionable, dalam Bahasa Indonesia)}',
     ].join(" ");
@@ -138,7 +140,7 @@ export const openrouterService = {
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Topik: ${topic}\nJudul: ${title}\nExcerpt: ${excerpt}\nIsi artikel:\n${content.join("\n\n")}`,
+            content: `Topik: ${topic}\nJudul (${title.length} karakter): ${title}\nExcerpt (${excerpt.length} karakter): ${excerpt}\nIsi artikel:\n${content.join("\n\n")}`,
           },
         ],
       }),
@@ -188,7 +190,7 @@ export const openrouterService = {
         messages: [
           {
             role: "user",
-            content: `Generate a professional blog cover image for an article titled "${title}" about "${topic}". Modern, clean, editorial illustration style. No text or letters in the image.`,
+            content: `Generate a professional blog cover image for an article titled "${title}" about "${topic}". Modern, clean, editorial illustration style. No text or letters in the image. Color palette must match the ChatHub brand: deep red (#be1e2d) as the dominant accent color, combined with neutral grays (#808184), near-black (#1a1618), and white`,
           },
         ],
       }),
