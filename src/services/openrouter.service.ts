@@ -77,7 +77,8 @@ export const openrouterService = {
       "Kamu adalah penulis konten untuk blog perusahaan ChatHub (platform omnichannel, AI chatbot, dan CRM).",
       `Tulis artikel blog berdasarkan topik yang diberikan, dalam ${ARTICLE_LOCALES.length} bahasa sekaligus: ${ARTICLE_LOCALES.join(", ")} (kode locale ISO).`,
       "Setiap bahasa harus jadi tulisan asli yang natural untuk penutur bahasa itu, bukan terjemahan kaku kata-per-kata.",
-      "Tulis dengan memperhatikan SEO: sertakan kata kunci utama (topik) di judul, di paragraf pembuka, dan sebar wajar di isi tanpa keyword-stuffing. Judul sebaiknya sekitar 50-60 karakter dan mengandung kata kunci. Excerpt berfungsi sebagai meta description, sebaiknya sekitar 120-160 karakter, ringkas, dan mengandung kata kunci. Jaga paragraf tetap ringkas dan mudah dibaca.",
+      "Tulis dengan memperhatikan SEO: sertakan kata kunci utama (topik) di judul, di paragraf pembuka, dan sebar wajar di isi tanpa keyword-stuffing. Judul sebaiknya sekitar 50-60 karakter dan mengandung kata kunci. Excerpt berfungsi sebagai meta description, sebaiknya sekitar 120-160 karakter, ringkas, dan mengandung kata kunci.",
+      "Panjang artikel WAJIB bervariasi mengikuti kedalaman topik — JANGAN selalu menulis jumlah paragraf/kata minimum di setiap artikel. Topik yang ringan/sederhana boleh 5-6 paragraf (total sekitar 400-500 kata), tapi topik yang lebih dalam, teknis, atau perlu penjelasan langkah-demi-langkah WAJIB ditulis lebih panjang dan lengkap, 8-10 paragraf (total sekitar 700-1000 kata). Setiap paragraf idealnya 60-100 kata yang substantif, bukan 2-3 kalimat pendek.",
       "Setiap paragraf di \"content\" HARUS berupa teks polos (plain text) — JANGAN gunakan markdown sama sekali (tanpa **bold**, *italic*, heading #, atau bullet list). Satu-satunya markup yang boleh dipakai adalah format link internal di instruksi di bawah, kalau ada.",
       prompt,
       // Placed right before the JSON format instruction (after the long
@@ -86,7 +87,7 @@ export const openrouterService = {
       // buried before a big block of unrelated custom instructions.
       internalLinksInstruction,
       "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
-      `{"translations": [{"locale": string (salah satu dari ${ARTICLE_LOCALES.join("/")}), "title": string, "excerpt": string (1-2 kalimat ringkasan), "content": string[] (4-6 paragraf isi artikel)}, ...]}`,
+      `{"translations": [{"locale": string (salah satu dari ${ARTICLE_LOCALES.join("/")}), "title": string, "excerpt": string (1-2 kalimat ringkasan), "content": string[] (5-10 paragraf isi artikel, jumlah & panjang menyesuaikan kedalaman topik sesuai instruksi di atas)}, ...]}`,
     ]
       .filter(Boolean)
       .join(" ");
@@ -97,37 +98,46 @@ export const openrouterService = {
       body: JSON.stringify({
         model: env.openrouter.textModel,
         response_format: { type: "json_object" },
-        // Two full locales x up to 6 paragraphs each, as JSON, comfortably
+        // Two full locales x up to 10 paragraphs each, as JSON, comfortably
         // exceeds most providers' default completion cap — without this the
         // response gets cut off mid-string and JSON.parse fails below.
-        max_tokens: 4096,
+        max_tokens: 6000,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Topik artikel: ${topic}` },
         ],
       }),
     });
-    console.log(res)
     const body = (await res.json().catch(() => null)) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
       error?: { message?: string };
     } | null;
-    console.log(body)
     if (!res.ok) {
       throw new HttpError(502, body?.error?.message ?? "Failed to generate article text via OpenRouter");
     }
 
-    const raw = body?.choices?.[0]?.message?.content;
+    // OpenRouter can return HTTP 200 while a per-choice generation still
+    // failed upstream (e.g. the provider errored out) — finish_reason
+    // "error" with a populated `error` field, and message.content left as
+    // a leftover fragment (which would otherwise fail JSON.parse below with
+    // a confusing "invalid JSON" message that hides the real cause).
+    const choice = body?.choices?.[0];
+    if (choice?.finish_reason === "error" || choice?.error) {
+      console.error("[openrouter] provider returned a generation error:", JSON.stringify(choice?.error));
+      throw new HttpError(502, `OpenRouter provider error while generating the article: ${JSON.stringify(choice?.error)}`);
+    }
+
+    const raw = choice?.message?.content;
     if (!raw) throw new HttpError(502, "OpenRouter returned an empty article response");
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // Log the raw response before failing — response_format: json_object
-      // should guarantee valid JSON, so a parse failure here almost always
-      // means the completion got cut off mid-response (token limit) rather
-      // than the model writing malformed JSON outright.
+      // response_format: json_object should guarantee valid JSON for a
+      // successful generation, so a parse failure here (after the error
+      // check above already ruled out a provider-side error) almost always
+      // means the completion got cut off mid-response (token limit).
       console.error("[openrouter] failed to parse article JSON, raw response:", raw);
       throw new HttpError(502, "OpenRouter returned invalid JSON for the article");
     }
@@ -181,7 +191,7 @@ export const openrouterService = {
     });
 
     const body = (await res.json().catch(() => null)) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
       error?: { message?: string };
     } | null;
 
@@ -189,7 +199,12 @@ export const openrouterService = {
       throw new HttpError(502, body?.error?.message ?? "Failed to score article SEO via OpenRouter");
     }
 
-    const raw = body?.choices?.[0]?.message?.content;
+    const scoreChoice = body?.choices?.[0];
+    if (scoreChoice?.finish_reason === "error" || scoreChoice?.error) {
+      throw new HttpError(502, `OpenRouter provider error while scoring SEO: ${JSON.stringify(scoreChoice?.error)}`);
+    }
+
+    const raw = scoreChoice?.message?.content;
     if (!raw) throw new HttpError(502, "OpenRouter returned an empty SEO score response");
 
     let parsed: unknown;
@@ -231,7 +246,11 @@ export const openrouterService = {
     });
 
     const body = (await res.json().catch(() => null)) as {
-      choices?: { message?: { images?: { image_url?: { url?: string } }[] } }[];
+      choices?: {
+        message?: { images?: { image_url?: { url?: string } }[] };
+        finish_reason?: string;
+        error?: unknown;
+      }[];
       error?: { message?: string };
     } | null;
 
@@ -239,7 +258,12 @@ export const openrouterService = {
       throw new HttpError(502, body?.error?.message ?? "Failed to generate article image via OpenRouter");
     }
 
-    const dataUrl = body?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const imageChoice = body?.choices?.[0];
+    if (imageChoice?.finish_reason === "error" || imageChoice?.error) {
+      throw new HttpError(502, `OpenRouter provider error while generating the image: ${JSON.stringify(imageChoice?.error)}`);
+    }
+
+    const dataUrl = imageChoice?.message?.images?.[0]?.image_url?.url;
     if (!dataUrl || !dataUrl.startsWith("data:image/")) {
       throw new HttpError(502, "OpenRouter did not return an image for this article");
     }
