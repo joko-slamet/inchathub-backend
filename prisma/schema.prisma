@@ -68,6 +68,12 @@ model AiArticleConfig {
   weekdayTopics String[]
   weekendTopics String[]
   prompt        String
+  // { url: string; description: string }[] — admin-curated pages the AI may
+  // link to from generated article paragraphs. Never let the model invent
+  // its own URLs; generation only picks from this list (see
+  // article-generation.service.ts, which strips any link whose href isn't
+  // an exact match here before saving).
+  internalLinks Json     @default("[]")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

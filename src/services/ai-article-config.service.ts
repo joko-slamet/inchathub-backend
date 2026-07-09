@@ -1,5 +1,7 @@
 import { prisma } from "../config/prisma";
 
+export type InternalLink = { url: string; description: string };
+
 const defaultConfig = {
   enabled: true,
   generateTimes: ["08:00"],
@@ -7,6 +9,7 @@ const defaultConfig = {
   weekendTopics: ["Produktivitas kerja", "Tren teknologi sehari-hari", "Gaya hidup tim kantoran"],
   prompt:
     "Tulis dengan gaya bahasa yang santai tapi tetap informatif, gunakan Bahasa Indonesia, dan sertakan call-to-action untuk mencoba ChatHub di bagian akhir artikel.",
+  internalLinks: [] as InternalLink[],
 };
 
 export type AiArticleConfigInput = {
@@ -15,6 +18,7 @@ export type AiArticleConfigInput = {
   weekdayTopics?: string[];
   weekendTopics?: string[];
   prompt?: string;
+  internalLinks?: InternalLink[];
 };
 
 export const aiArticleConfigService = {

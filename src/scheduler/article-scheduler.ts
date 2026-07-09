@@ -1,4 +1,4 @@
-import { aiArticleConfigService } from "../services/ai-article-config.service";
+import { aiArticleConfigService, type InternalLink } from "../services/ai-article-config.service";
 import { articleGenerationService } from "../services/article-generation.service";
 import { getJakartaParts } from "../utils/jakarta-time";
 
@@ -34,7 +34,12 @@ async function tick() {
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const dayType = isWeekend ? "WEEKEND" : "WEEKDAY";
 
-    const article = await articleGenerationService.generateAndSave(topic, dayType, config.prompt);
+    const article = await articleGenerationService.generateAndSave(
+      topic,
+      dayType,
+      config.prompt,
+      config.internalLinks as InternalLink[],
+    );
     const title = article.translations[0]?.title ?? article.slug;
     console.log(`[article-scheduler] generated "${title}" (${dayType}, topic: ${topic})`);
   } catch (err) {

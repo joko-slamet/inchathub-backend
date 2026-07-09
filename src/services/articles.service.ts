@@ -2,7 +2,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middlewares/errorHandler";
-import { aiArticleConfigService } from "./ai-article-config.service";
+import { aiArticleConfigService, type InternalLink } from "./ai-article-config.service";
 import { articleGenerationService } from "./article-generation.service";
 import { getJakartaParts } from "../utils/jakarta-time";
 
@@ -53,6 +53,6 @@ export const articlesService = {
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const dayType = isWeekend ? "WEEKEND" : "WEEKDAY";
 
-    return articleGenerationService.generateAndSave(topic, dayType, config.prompt);
+    return articleGenerationService.generateAndSave(topic, dayType, config.prompt, config.internalLinks as InternalLink[]);
   },
 };

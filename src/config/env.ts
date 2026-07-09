@@ -20,7 +20,7 @@ export const env = {
   apiPublicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${Number(process.env.PORT ?? 4000)}`,
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY ?? "",
-    textModel: process.env.OPENROUTER_TEXT_MODEL ?? "openai/gpt-4o-mini",
+    textModel: process.env.OPENROUTER_TEXT_MODEL ?? "google/gemini-2.5-flash",
     imageModel: process.env.OPENROUTER_IMAGE_MODEL ?? "google/gemini-2.5-flash-image-preview",
   },
   smtp: {

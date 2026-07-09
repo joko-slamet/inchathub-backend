@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env";
 import { HttpError } from "../middlewares/errorHandler";
+import type { InternalLink } from "./ai-article-config.service";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "articles");
@@ -51,15 +52,39 @@ function isValidTranslation(value: unknown): value is ArticleTranslationContent 
 }
 
 export const openrouterService = {
-  async generateArticle({ topic, prompt }: { topic: string; prompt: string }): Promise<GeneratedArticleContent> {
+  async generateArticle({
+    topic,
+    prompt,
+    internalLinks = [],
+  }: {
+    topic: string;
+    prompt: string;
+    internalLinks?: InternalLink[];
+  }): Promise<GeneratedArticleContent> {
     requireConfigured();
+
+    // The model only ever picks from this admin-curated list — it must never
+    // invent its own href. article-generation.service.ts double-checks this
+    // by stripping any link whose URL isn't an exact match before saving, so
+    // a broken/hallucinated link can't reach the published article even if
+    // the model doesn't follow this instruction.
+    const internalLinksInstruction =
+      internalLinks.length > 0
+        ? `PENTING — TAUTAN INTERNAL WAJIB: kamu WAJIB menyisipkan minimal 1 (idealnya 2-3) tautan internal dari daftar di bawah ini ke dalam paragraf "content", di titik yang paling masuk akal secara konteks (termasuk kalimat call-to-action di akhir artikel — itu tempat yang sangat wajar untuk tautan seperti halaman harga). Hampir semua topik blog ChatHub bisa dikaitkan secara natural ke minimal satu tautan di daftar ini — HANYA lewati sepenuhnya kalau kamu benar-benar tidak menemukan satupun yang related. Format WAJIB persis markdown: [teks anchor](URL) — ditulis LANGSUNG menyatu di dalam kalimat paragraf, contoh konkret: "...jika Anda tertarik, [${internalLinks[0].description}](${internalLinks[0].url}) bisa jadi langkah selanjutnya." WAJIB hanya gunakan URL yang tercantum PERSIS di daftar ini — jangan pernah mengarang atau mengubah URL. Daftar tautan yang tersedia:\n${internalLinks.map((l) => `- ${l.url}: ${l.description}`).join("\n")} Ingat sekali lagi sebelum menulis: minimal satu paragraf "content" di SETIAP locale wajib mengandung tautan [teks](URL) dari daftar di atas.`
+        : null;
 
     const systemPrompt = [
       "Kamu adalah penulis konten untuk blog perusahaan ChatHub (platform omnichannel, AI chatbot, dan CRM).",
       `Tulis artikel blog berdasarkan topik yang diberikan, dalam ${ARTICLE_LOCALES.length} bahasa sekaligus: ${ARTICLE_LOCALES.join(", ")} (kode locale ISO).`,
       "Setiap bahasa harus jadi tulisan asli yang natural untuk penutur bahasa itu, bukan terjemahan kaku kata-per-kata.",
       "Tulis dengan memperhatikan SEO: sertakan kata kunci utama (topik) di judul, di paragraf pembuka, dan sebar wajar di isi tanpa keyword-stuffing. Judul sebaiknya sekitar 50-60 karakter dan mengandung kata kunci. Excerpt berfungsi sebagai meta description, sebaiknya sekitar 120-160 karakter, ringkas, dan mengandung kata kunci. Jaga paragraf tetap ringkas dan mudah dibaca.",
+      "Setiap paragraf di \"content\" HARUS berupa teks polos (plain text) — JANGAN gunakan markdown sama sekali (tanpa **bold**, *italic*, heading #, atau bullet list). Satu-satunya markup yang boleh dipakai adalah format link internal di instruksi di bawah, kalau ada.",
       prompt,
+      // Placed right before the JSON format instruction (after the long
+      // custom `prompt` above) rather than earlier — instructions near the
+      // end of a long system prompt get followed more reliably than ones
+      // buried before a big block of unrelated custom instructions.
+      internalLinksInstruction,
       "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
       `{"translations": [{"locale": string (salah satu dari ${ARTICLE_LOCALES.join("/")}), "title": string, "excerpt": string (1-2 kalimat ringkasan), "content": string[] (4-6 paragraf isi artikel)}, ...]}`,
     ]
@@ -72,6 +97,10 @@ export const openrouterService = {
       body: JSON.stringify({
         model: env.openrouter.textModel,
         response_format: { type: "json_object" },
+        // Two full locales x up to 6 paragraphs each, as JSON, comfortably
+        // exceeds most providers' default completion cap — without this the
+        // response gets cut off mid-string and JSON.parse fails below.
+        max_tokens: 4096,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Topik artikel: ${topic}` },
@@ -95,6 +124,11 @@ export const openrouterService = {
     try {
       parsed = JSON.parse(raw);
     } catch {
+      // Log the raw response before failing — response_format: json_object
+      // should guarantee valid JSON, so a parse failure here almost always
+      // means the completion got cut off mid-response (token limit) rather
+      // than the model writing malformed JSON outright.
+      console.error("[openrouter] failed to parse article JSON, raw response:", raw);
       throw new HttpError(502, "OpenRouter returned invalid JSON for the article");
     }
 

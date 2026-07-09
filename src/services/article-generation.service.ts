@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import type { ArticleDayType } from "../generated/prisma/enums";
 import { openrouterService } from "./openrouter.service";
 import { slugify } from "../utils/slug";
+import type { InternalLink } from "./ai-article-config.service";
 
 async function uniqueSlug(title: string): Promise<string> {
   const base = slugify(title) || "artikel";
@@ -14,9 +15,41 @@ async function uniqueSlug(title: string): Promise<string> {
   return slug;
 }
 
+const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+const MARKDOWN_BOLD_PATTERN = /\*\*([^*]+)\*\*/g;
+const MARKDOWN_ITALIC_PATTERN = /\*([^*]+)\*/g;
+
+// Defense in depth against the model ignoring the "only use these exact
+// URLs" instruction in the prompt — any markdown link whose href isn't an
+// exact match against the admin's list is unwrapped back to plain text
+// before the article is ever saved, so a hallucinated or broken link can
+// never reach a published page.
+function sanitizeInternalLinks(paragraphs: string[], allowedLinks: InternalLink[]): string[] {
+  const allowedUrls = new Set(allowedLinks.map((l) => l.url));
+  return paragraphs.map((paragraph) =>
+    paragraph.replace(MARKDOWN_LINK_PATTERN, (match, text: string, url: string) =>
+      allowedUrls.has(url) ? match : text,
+    ),
+  );
+}
+
+// Article paragraphs render as plain text on the frontend (see
+// LinkifiedText, which only understands the link syntax above) — the model
+// is told not to use markdown emphasis, but strip it here too in case it
+// slips through anyway, so raw "**"/"*" never show up on the published page.
+function stripMarkdownEmphasis(paragraphs: string[]): string[] {
+  return paragraphs.map((paragraph) =>
+    paragraph.replace(MARKDOWN_BOLD_PATTERN, "$1").replace(MARKDOWN_ITALIC_PATTERN, "$1"),
+  );
+}
+
 export const articleGenerationService = {
-  async generateAndSave(topic: string, dayType: ArticleDayType, prompt: string) {
-    const draft = await openrouterService.generateArticle({ topic, prompt });
+  async generateAndSave(topic: string, dayType: ArticleDayType, prompt: string, internalLinks: InternalLink[] = []) {
+    const draft = await openrouterService.generateArticle({ topic, prompt, internalLinks });
+    draft.translations = draft.translations.map((t) => ({
+      ...t,
+      content: sanitizeInternalLinks(stripMarkdownEmphasis(t.content), internalLinks),
+    }));
     // "id" is the site's primary/default locale — used for the slug and as
     // the image prompt's context when present, falling back to whichever
     // translation the model returned first.
