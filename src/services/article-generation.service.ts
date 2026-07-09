@@ -1,15 +1,7 @@
 import { prisma } from "../config/prisma";
 import type { ArticleDayType } from "../generated/prisma/enums";
 import { openrouterService } from "./openrouter.service";
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { slugify } from "../utils/slug";
 
 async function uniqueSlug(title: string): Promise<string> {
   const base = slugify(title) || "artikel";

@@ -7,6 +7,7 @@ import { companyProfileRouter } from "./company-profile.routes";
 import { contactSubmissionRouter } from "./contact-submission.routes";
 import { healthRouter } from "./health.routes";
 import { pricingRouter } from "./pricing.routes";
+import { promoRouter } from "./promo.routes";
 import { siteSettingsRouter } from "./site-settings.routes";
 import { userRouter } from "./user.routes";
 
@@ -20,5 +21,6 @@ apiRouter.use("/ai-article-config", aiArticleConfigRouter);
 apiRouter.use("/articles", articlesRouter);
 apiRouter.use("/company-profile", companyProfileRouter);
 apiRouter.use("/company-logos", companyLogoRouter);
+apiRouter.use("/promos", promoRouter);
 apiRouter.use("/site-settings", siteSettingsRouter);
 apiRouter.use("/contact-submissions", contactSubmissionRouter);

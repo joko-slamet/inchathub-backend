@@ -163,6 +163,42 @@ model CompanyLogo {
   @@map("company_logos")
 }
 
+enum PromoDiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+model Promo {
+  id            String             @id @default(uuid()) @db.Uuid
+  slug          String             @unique
+  code          String             @unique
+  imageUrl      String
+  discountType  PromoDiscountType
+  discountValue Int
+  isActive      Boolean            @default(true)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  sortOrder     Int                @default(0)
+  translations  PromoTranslation[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@map("promos")
+}
+
+model PromoTranslation {
+  id          String @id @default(uuid()) @db.Uuid
+  promoId     String @db.Uuid
+  promo       Promo  @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  locale      String
+  title       String
+  excerpt     String
+  description String
+
+  @@unique([promoId, locale])
+  @@map("promo_translations")
+}
+
 model ContactSubmission {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
