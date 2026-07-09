@@ -9,16 +9,6 @@ import { env } from "../config/env";
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 export const authService = {
-  async register(data: { name: string; email: string; password: string; phone?: string }) {
-    const existing = await userService.findByEmailWithPassword(data.email);
-    if (existing) {
-      throw new HttpError(409, "Email is already registered");
-    }
-    const user = await userService.create(data);
-    const token = signToken({ sub: user.id, role: user.role });
-    return { user, token };
-  },
-
   async login(email: string, password: string) {
     const user = await userService.findByEmailWithPassword(email);
     if (!user || !(await verifyPassword(password, user.password))) {

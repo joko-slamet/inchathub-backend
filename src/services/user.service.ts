@@ -8,10 +8,6 @@ const publicSelect = {
   email: true,
   phone: true,
   role: true,
-  planExpiresAt: true,
-  activePlan: {
-    select: { id: true, key: true, translations: true },
-  },
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -19,15 +15,6 @@ const publicSelect = {
 export const userService = {
   findAll() {
     return prisma.user.findMany({ orderBy: { id: "asc" }, select: publicSelect });
-  },
-
-  // Customers with a currently-active plan (purchased and not yet expired).
-  findActiveCustomers() {
-    return prisma.user.findMany({
-      where: { activePlanId: { not: null }, planExpiresAt: { gt: new Date() } },
-      orderBy: { planExpiresAt: "desc" },
-      select: publicSelect,
-    });
   },
 
   findById(id: string) {

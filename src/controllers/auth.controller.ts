@@ -17,16 +17,6 @@ function setAuthCookie(res: Response, token: string) {
 }
 
 export const authController = {
-  async register(req: Request, res: Response) {
-    const { name, email, password, phone } = req.body ?? {};
-    if (!name || !email || !password) {
-      throw new HttpError(400, "name, email and password are required");
-    }
-    const { user, token } = await authService.register({ name, email, password, phone });
-    setAuthCookie(res, token);
-    res.status(201).json({ user, token });
-  },
-
   async login(req: Request, res: Response) {
     const { email, password } = req.body ?? {};
     if (!email || !password) {
