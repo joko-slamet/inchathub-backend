@@ -28,6 +28,22 @@ function headers() {
 // duplicated here deliberately.
 const ARTICLE_LOCALES = ["id", "en"] as const;
 
+// Randomly picked per generateImage() call so consecutive article covers
+// don't all converge on the same composition — see the comment at that call
+// site for why this exists.
+const IMAGE_SCENES = [
+  "a customer service agent smiling while using a headset and laptop in a bright, minimalist office",
+  "close-up of a smartphone screen showing a busy chat conversation, held by someone in a co-working space",
+  "a diverse small business team collaborating around a table with laptops and tablets in a sunlit office",
+  "a professional working remotely from a cafe, on a video call on a laptop, warm natural window lighting",
+  "an entrepreneur reviewing sales analytics on a tablet inside a modern retail store",
+  "a busy customer support call center with agents wearing headsets, candid documentary photography style",
+  "hands typing on a laptop keyboard with a blurred modern office background, shallow depth of field",
+  "a small business owner checking a smartphone notification while packing orders in a cozy workspace",
+  "two colleagues reviewing a dashboard on a large monitor together in a modern startup office",
+  "a delivery courier checking an order confirmation on a smartphone outside a small shop",
+];
+
 export type ArticleTranslationContent = {
   locale: string;
   title: string;
@@ -230,6 +246,12 @@ export const openrouterService = {
   async generateImage({ title, topic }: { title: string; topic: string }): Promise<string> {
     requireConfigured();
 
+    // A fixed style instruction ("editorial illustration style") made every
+    // cover look identical regardless of topic — randomly picking one of
+    // several realistic photographic scenes gives each generated article a
+    // visually distinct cover while keeping brand color grading consistent.
+    const scene = IMAGE_SCENES[Math.floor(Math.random() * IMAGE_SCENES.length)];
+
     const res = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: headers(),
@@ -239,7 +261,7 @@ export const openrouterService = {
         messages: [
           {
             role: "user",
-            content: `Generate a professional blog cover image for an article titled "${title}" about "${topic}". Modern, clean, editorial illustration style. No text or letters in the image. Color palette must match the ChatHub brand: deep red (#be1e2d) as the dominant accent color, combined with neutral grays (#808184), near-black (#1a1618), and white`,
+            content: `Generate a professional blog cover photo for an article titled "${title}" about "${topic}". Scene: ${scene}. Photorealistic professional photography — shot on a DSLR with natural lighting and shallow depth of field, editorial/corporate photography style. NOT an illustration, NOT a 3D render, NOT a cartoon or flat vector graphic. No text or letters anywhere in the image. Subtly incorporate the ChatHub brand's deep red (#be1e2d) as an accent within the scene (e.g. clothing, signage, or a UI screen visible in frame), with an overall neutral color grading of grays (#808184), near-black (#1a1618), and white.`,
           },
         ],
       }),
