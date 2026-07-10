@@ -26,6 +26,12 @@ export const articlesController = {
     res.json(article);
   },
 
+  async recordView(req: Request, res: Response) {
+    const slug = parseSlug(req.params.slug);
+    await articlesService.incrementView(slug);
+    res.status(204).send();
+  },
+
   async list(_req: Request, res: Response) {
     const articles = await articlesService.findAll();
     res.json(articles);

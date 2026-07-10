@@ -27,6 +27,12 @@ export const articlesService = {
     });
   },
 
+  // Best-effort — a missing article here just means the visitor hit a stale
+  // link, not something worth surfacing as a hard error to the page.
+  async incrementView(slug: string) {
+    await prisma.article.updateMany({ where: { slug }, data: { viewCount: { increment: 1 } } });
+  },
+
   async remove(id: string) {
     const article = await prisma.article.findUnique({ where: { id } });
     if (!article) throw new HttpError(404, "Article not found");

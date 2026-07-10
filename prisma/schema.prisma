@@ -93,6 +93,7 @@ model Article {
   imageUrl     String
   seoScore     Int?
   seoFeedback  String?
+  viewCount    Int                  @default(0)
   translations ArticleTranslation[]
   generatedAt  DateTime             @default(now())
   createdAt    DateTime             @default(now())

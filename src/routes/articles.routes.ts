@@ -10,6 +10,7 @@ export const articlesRouter = Router();
 // admin-only routes below so they aren't caught by `authenticate`.
 articlesRouter.get("/public", asyncHandler(articlesController.listPublic));
 articlesRouter.get("/public/:slug", asyncHandler(articlesController.getPublicBySlug));
+articlesRouter.post("/public/:slug/view", asyncHandler(articlesController.recordView));
 
 articlesRouter.get("/", authenticate, authorize(Role.ADMIN), asyncHandler(articlesController.list));
 articlesRouter.post(
