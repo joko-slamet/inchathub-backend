@@ -7,11 +7,3 @@ export const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit." },
 });
-
-export const forgotPasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Terlalu banyak permintaan reset password. Coba lagi nanti." },
-});

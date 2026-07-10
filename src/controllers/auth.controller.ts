@@ -27,24 +27,6 @@ export const authController = {
     res.json({ user, token });
   },
 
-  async forgotPassword(req: Request, res: Response) {
-    const { email } = req.body ?? {};
-    if (!email) {
-      throw new HttpError(400, "email is required");
-    }
-    await authService.forgotPassword(email);
-    res.json({ message: "Jika email terdaftar, kami telah mengirimkan link reset password." });
-  },
-
-  async resetPassword(req: Request, res: Response) {
-    const { token, password } = req.body ?? {};
-    if (!token || !password) {
-      throw new HttpError(400, "token and password are required");
-    }
-    await authService.resetPassword(token, password);
-    res.json({ message: "Password berhasil direset." });
-  },
-
   async logout(_req: Request, res: Response) {
     res.clearCookie(AUTH_COOKIE_NAME);
     res.status(204).send();

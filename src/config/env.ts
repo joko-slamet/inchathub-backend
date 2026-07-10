@@ -23,11 +23,4 @@ export const env = {
     textModel: process.env.OPENROUTER_TEXT_MODEL ?? "google/gemini-2.5-flash",
     imageModel: process.env.OPENROUTER_IMAGE_MODEL ?? "google/gemini-2.5-flash-image-preview",
   },
-  smtp: {
-    host: process.env.SMTP_HOST ?? "",
-    port: Number(process.env.SMTP_PORT ?? 587),
-    user: process.env.SMTP_USER ?? "",
-    pass: process.env.SMTP_PASS ?? "",
-    from: process.env.SMTP_FROM ?? "ChatHub <no-reply@chathub.com>",
-  },
 };
