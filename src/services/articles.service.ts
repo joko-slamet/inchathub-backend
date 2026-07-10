@@ -20,9 +20,36 @@ export const articlesService = {
     });
   },
 
+  // Powers the paginated /blog list page — queried a page at a time instead
+  // of the page fetching every article and slicing client-side.
+  async findPage(page: number, limit: number) {
+    const [data, total] = await Promise.all([
+      prisma.article.findMany({
+        orderBy: { generatedAt: "desc" },
+        include: { translations: true },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.article.count(),
+    ]);
+    return { data, total };
+  },
+
   findBySlug(slug: string) {
     return prisma.article.findUnique({
       where: { slug },
+      include: { translations: true },
+    });
+  },
+
+  // Powers the "related articles" strip on a blog detail page — queried
+  // with a limit directly instead of the page fetching every article and
+  // slicing client-side.
+  findRelated(excludeSlug: string, limit: number) {
+    return prisma.article.findMany({
+      where: { slug: { not: excludeSlug } },
+      orderBy: { generatedAt: "desc" },
+      take: limit,
       include: { translations: true },
     });
   },
