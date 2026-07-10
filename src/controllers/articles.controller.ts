@@ -33,6 +33,11 @@ function parsePage(value: unknown): number {
   return parsed;
 }
 
+async function sendPage(res: Response, page: number, limit: number) {
+  const { data, total } = await articlesService.findPage(page, limit);
+  res.json({ data, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
+}
+
 export const articlesController = {
   // Public — every generated article is visible on the public blog, there's
   // no draft/review state (yet), so this currently returns the same data as
@@ -49,10 +54,7 @@ export const articlesController = {
       return;
     }
 
-    const page = parsePage(req.query.page);
-    const limit = parseLimit(req.query.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
-    const { data, total } = await articlesService.findPage(page, limit);
-    res.json({ data, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
+    await sendPage(res, parsePage(req.query.page), parseLimit(req.query.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE));
   },
 
   async getPublicBySlug(req: Request, res: Response) {
@@ -75,9 +77,11 @@ export const articlesController = {
     res.status(204).send();
   },
 
-  async list(_req: Request, res: Response) {
-    const articles = await articlesService.findAll();
-    res.json(articles);
+  // Admin list — always paginated (unlike listPublic, this has a single
+  // caller: the admin blog panel), so it never has to load every article at
+  // once as the archive grows.
+  async list(req: Request, res: Response) {
+    await sendPage(res, parsePage(req.query.page), parseLimit(req.query.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE));
   },
 
   async remove(req: Request, res: Response) {
