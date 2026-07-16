@@ -20,6 +20,13 @@ articlesRouter.post(
   authorize(Role.ADMIN),
   asyncHandler(articlesController.generateNow),
 );
+articlesRouter.get("/:id", authenticate, authorize(Role.ADMIN), asyncHandler(articlesController.getOne));
+articlesRouter.patch(
+  "/:id",
+  authenticate,
+  authorize(Role.ADMIN),
+  asyncHandler(articlesController.update),
+);
 articlesRouter.delete(
   "/:id",
   authenticate,

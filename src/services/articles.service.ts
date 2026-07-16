@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma";
 import { HttpError } from "../middlewares/errorHandler";
 import { aiArticleConfigService, type InternalLink } from "./ai-article-config.service";
 import { articleGenerationService } from "./article-generation.service";
+import { openrouterService } from "./openrouter.service";
 import { getJakartaParts } from "../utils/jakarta-time";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "articles");
@@ -38,6 +39,49 @@ export const articlesService = {
   findBySlug(slug: string) {
     return prisma.article.findUnique({
       where: { slug },
+      include: { translations: true },
+    });
+  },
+
+  findById(id: string) {
+    return prisma.article.findUnique({
+      where: { id },
+      include: { translations: true },
+    });
+  },
+
+  async updateTranslations(
+    id: string,
+    translations: { locale: string; title: string; excerpt: string; content: string[] }[],
+  ) {
+    const existing = await prisma.article.findUnique({ where: { id } });
+    if (!existing) throw new HttpError(404, "Article not found");
+
+    await prisma.$transaction(
+      translations.map((t) =>
+        prisma.articleTranslation.upsert({
+          where: { articleId_locale: { articleId: id, locale: t.locale } },
+          create: { articleId: id, locale: t.locale, title: t.title, excerpt: t.excerpt, content: t.content },
+          update: { title: t.title, excerpt: t.excerpt, content: t.content },
+        }),
+      ),
+    );
+
+    // Re-score against the revised text so the admin can see whether the
+    // edit actually improved on the AI's original feedback. Non-critical,
+    // same as during generation — a scoring failure shouldn't stop the edit
+    // from being saved.
+    const primary = translations.find((t) => t.locale === "id") ?? translations[0];
+    const seo = await openrouterService
+      .scoreArticleSeo({ title: primary.title, excerpt: primary.excerpt, content: primary.content, topic: existing.topic })
+      .catch((err) => {
+        console.error("Failed to re-score article SEO:", err);
+        return null;
+      });
+
+    return prisma.article.update({
+      where: { id },
+      data: seo ? { seoScore: seo.score, seoFeedback: seo.feedback } : {},
       include: { translations: true },
     });
   },

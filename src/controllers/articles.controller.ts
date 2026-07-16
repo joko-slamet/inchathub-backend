@@ -10,6 +10,28 @@ function parseSlug(slug: unknown): string {
   return slug;
 }
 
+function parseArticleTranslations(
+  value: unknown,
+): { locale: string; title: string; excerpt: string; content: string[] }[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new HttpError(400, "translations must be a non-empty array");
+  }
+  return value.map((t) => {
+    if (
+      typeof t !== "object" ||
+      t === null ||
+      typeof t.locale !== "string" ||
+      typeof t.title !== "string" ||
+      typeof t.excerpt !== "string" ||
+      !Array.isArray(t.content) ||
+      !t.content.every((p: unknown) => typeof p === "string")
+    ) {
+      throw new HttpError(400, "each translation requires { locale, title, excerpt, content: string[] }");
+    }
+    return { locale: t.locale, title: t.title, excerpt: t.excerpt, content: t.content as string[] };
+  });
+}
+
 const DEFAULT_RELATED_LIMIT = 3;
 const MAX_RELATED_LIMIT = 12;
 const DEFAULT_PAGE_SIZE = 9;
@@ -82,6 +104,20 @@ export const articlesController = {
   // once as the archive grows.
   async list(req: Request, res: Response) {
     await sendPage(res, parsePage(req.query.page), parseLimit(req.query.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE));
+  },
+
+  async getOne(req: Request, res: Response) {
+    const id = parseId(req.params.id);
+    const article = await articlesService.findById(id);
+    if (!article) throw new HttpError(404, "Article not found");
+    res.json(article);
+  },
+
+  async update(req: Request, res: Response) {
+    const id = parseId(req.params.id);
+    const translations = parseArticleTranslations(req.body?.translations);
+    const article = await articlesService.updateTranslations(id, translations);
+    res.json(article);
   },
 
   async remove(req: Request, res: Response) {
