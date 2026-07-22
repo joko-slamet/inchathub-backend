@@ -5,7 +5,7 @@ import { authRouter } from "./auth.routes";
 import { companyLogoRouter } from "./company-logo.routes";
 import { companyProfileRouter } from "./company-profile.routes";
 import { contactSubmissionRouter } from "./contact-submission.routes";
-import webinarRegistrationRouter from "./webinarRegistration.route";
+import { webinarRegistrationRouter } from "./webinarRegistration.route";
 import { healthRouter } from "./health.routes";
 import { pricingRouter } from "./pricing.routes";
 import { promoRouter } from "./promo.routes";

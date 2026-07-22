@@ -8,4 +8,4 @@ const router = Router();
 router.post('/webinar-registrations', createWebinarRegistration);
 router.get('/webinar-registrations', authorize('ADMIN'), getWebinarRegistrations);
 
-export default router;
+export const webinarRegistrationRouter = router;
