@@ -25,3 +25,4 @@ apiRouter.use("/company-logos", companyLogoRouter);
 apiRouter.use("/promos", promoRouter);
 apiRouter.use("/site-settings", siteSettingsRouter);
 apiRouter.use("/contact-submissions", contactSubmissionRouter);
+apiRouter.use("/webinar-registrations", webinarRegistrationRouter);
