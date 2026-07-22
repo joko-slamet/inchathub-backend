@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
+import { mailService } from '../services/mail.service';
 
 export const createWebinarRegistration = async (req: Request, res: Response) => {
   try {
@@ -15,6 +16,17 @@ export const createWebinarRegistration = async (req: Request, res: Response) => 
       },
     });
 
+    try {
+      await mailService.sendWebinarConfirmation({
+        name,
+        city,
+        email,
+        whatsapp,
+      });
+    } catch (mailError) {
+      console.error('[mail] failed to send webinar confirmation', mailError);
+    }
+
     res.status(201).json(newRegistration);
   } catch (error: any) {
     if (error.code === 'P2002') { // Unique constraint failed for email
@@ -24,7 +36,7 @@ export const createWebinarRegistration = async (req: Request, res: Response) => 
   }
 };
 
-export const getWebinarRegistrations = async (req: Request, res: Response) => {
+export const getWebinarRegistrations = async (_req: Request, res: Response) => {
   try {
     const registrations = await prisma.webinarRegistration.findMany({
       orderBy: {

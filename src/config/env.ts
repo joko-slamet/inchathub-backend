@@ -15,6 +15,15 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:3000",
   nodeEnv: process.env.NODE_ENV ?? "development",
+  mail: {
+    host: process.env.MAIL_HOST ?? "",
+    port: Number(process.env.MAIL_PORT ?? 587),
+    secure: process.env.MAIL_SECURE === "true",
+    user: process.env.MAIL_USER ?? "",
+    pass: process.env.MAIL_PASS ?? "",
+    fromEmail: process.env.MAIL_FROM_EMAIL ?? process.env.MAIL_USER ?? "",
+    fromName: process.env.MAIL_FROM_NAME ?? "ChatHub",
+  },
   // Publicly reachable base URL of THIS backend — used to build absolute
   // URLs for assets like AI-generated article images served from /uploads.
   apiPublicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${Number(process.env.PORT ?? 4000)}`,
