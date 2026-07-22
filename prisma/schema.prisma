@@ -214,3 +214,14 @@ model ContactSubmission {
 
   @@map("contact_submissions")
 }
+
+model WebinarRegistration {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  city      String
+  email     String   @unique
+  whatsapp  String
+  createdAt DateTime @default(now())
+
+  @@map("webinar_registrations")
+}
