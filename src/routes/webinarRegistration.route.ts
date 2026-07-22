@@ -1,11 +1,11 @@
 
 import { Router } from 'express';
 import { createWebinarRegistration, getWebinarRegistrations } from '../controllers/webinarRegistration.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authorize } from '../middlewares/auth';
 
 const router = Router();
 
 router.post('/webinar-registrations', createWebinarRegistration);
-router.get('/webinar-registrations', authMiddleware(['ADMIN']), getWebinarRegistrations);
+router.get('/webinar-registrations', authorize('ADMIN'), getWebinarRegistrations);
 
 export default router;
