@@ -5,7 +5,7 @@ import { authorize } from '../middlewares/auth';
 
 const router = Router();
 
-router.post('/webinar-registrations', createWebinarRegistration);
-router.get('/webinar-registrations', authorize('ADMIN'), getWebinarRegistrations);
+router.post('/', createWebinarRegistration);
+router.get('/', authorize('ADMIN'), getWebinarRegistrations);
 
 export const webinarRegistrationRouter = router;
