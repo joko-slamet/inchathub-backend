@@ -39,20 +39,21 @@ export const mailService = {
         `Halo, ${payload.name},`,
         "",
         "Terima kasih telah mendaftar di webinar kami. 🎉",
+        "",
         "Registrasi Anda berhasil dicatat sebagai berikut:",
         "",
-        `Nama Lengkap           : ${payload.name}`,
-        `Nama Panggilan        : ${payload.name}`,
-        `Email                            : ${payload.email}`,
-        `WhatsApp                   : ${payload.whatsapp}`,
-        `Kota                              : ${payload.city}`,
+        `* Nama Lengkap           : ${payload.name}`,
+        `* Nama Panggilan        : ${payload.name}`,
+        `* Email                            : ${payload.email}`,
+        `* WhatsApp                   : ${payload.whatsapp}`,
+        `* Kota                              : ${payload.city}`,
         "",
         "Informasi Penting",
         "Link Zoom akan kami kirimkan melalui WhatsApp pada hari pelaksanaan webinar. Mohon dipastikan nomor WhatsApp Anda aktif agar tidak ketinggalan informasi.",
         "",
         "---",
         "",
-        "Sekilas tentang ChatHub",
+        "Sekilas ChatHub",
         "Webinar ini dipersembahkan oleh ChatHub, platform Omnichannel yang mengintegrasikan WhatsApp, Instagram, Facebook, Telegram, Email, Live Chat, dan berbagai channel lainnya ke dalam satu dashboard.",
         "",
         "Dilengkapi dengan AI Chatbot dan Smart CRM, ChatHub membantu perusahaan:",
@@ -86,7 +87,7 @@ export const mailService = {
             <p style="margin:0">Link Zoom akan kami kirimkan melalui WhatsApp pada hari pelaksanaan webinar. Mohon dipastikan nomor WhatsApp Anda aktif agar tidak ketinggalan informasi.</p>
           </div>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
-          <p style="font-weight:bold;margin-bottom:8px">Sekilas tentang ChatHub</p>
+          <p style="font-weight:bold;margin-bottom:8px">Sekilas ChatHub</p>
           <p>Webinar ini dipersembahkan oleh ChatHub, platform Omnichannel yang mengintegrasikan WhatsApp, Instagram, Facebook, Telegram, Email, Live Chat, dan berbagai channel lainnya ke dalam satu dashboard.</p>
           <p>Dilengkapi dengan AI Chatbot dan Smart CRM, ChatHub membantu perusahaan:</p>
           <ul style="margin:8px 0 16px 20px;padding:0">
