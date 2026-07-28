@@ -42,8 +42,7 @@ export const mailService = {
         "",
         "Registrasi Anda berhasil dicatat sebagai berikut:",
         "",
-        `* Nama Lengkap           : ${payload.name}`,
-        `* Nama Panggilan        : ${payload.name}`,
+        `* Nama           : ${payload.name}`,
         `* Email                            : ${payload.email}`,
         `* WhatsApp                   : ${payload.whatsapp}`,
         `* Kota                              : ${payload.city}`,
@@ -68,7 +67,7 @@ export const mailService = {
         "",
         "Salam hangat,",
         "Chat Hub Team",
-        "0857-0555-0455",
+        "0857-0555-0436",
       ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1a1618">
