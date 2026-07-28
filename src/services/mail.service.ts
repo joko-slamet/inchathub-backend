@@ -75,8 +75,7 @@ export const mailService = {
           <p>Terima kasih telah mendaftar di webinar kami. 🎉</p>
           <p>Registrasi Anda berhasil dicatat sebagai berikut:</p>
           <table style="border-collapse:collapse;margin:16px 0">
-            <tr><td style="padding:4px 20px 4px 0"><strong>Nama Lengkap</strong></td><td>${payload.name}</td></tr>
-            <tr><td style="padding:4px 20px 4px 0"><strong>Nama Panggilan</strong></td><td>${payload.name}</td></tr>
+            <tr><td style="padding:4px 20px 4px 0"><strong>Nama</strong></td><td>${payload.name}</td></tr>
             <tr><td style="padding:4px 20px 4px 0"><strong>Email</strong></td><td>${payload.email}</td></tr>
             <tr><td style="padding:4px 20px 4px 0"><strong>WhatsApp</strong></td><td>${payload.whatsapp}</td></tr>
             <tr><td style="padding:4px 20px 4px 0"><strong>Kota</strong></td><td>${payload.city}</td></tr>
@@ -99,7 +98,7 @@ export const mailService = {
           <p style="margin-top:24px">
             Salam hangat,<br />
             <strong>Chat Hub Team</strong><br />
-            0857-0555-0455
+            0857-0555-0436
           </p>
         </div>
       `,
