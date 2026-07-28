@@ -166,6 +166,100 @@ export const openrouterService = {
     return { translations };
   },
 
+  // Rewrites an already-published article's text to address a prior SEO
+  // audit's feedback, rather than generating fresh content — the model is
+  // given the existing translations verbatim and told to preserve their
+  // meaning, only changing what the feedback calls out.
+  async reviseArticleSeo({
+    topic,
+    feedback,
+    translations,
+    internalLinks = [],
+  }: {
+    topic: string;
+    feedback: string;
+    translations: ArticleTranslationContent[];
+    internalLinks?: InternalLink[];
+  }): Promise<GeneratedArticleContent> {
+    requireConfigured();
+
+    const locales = translations.map((t) => t.locale);
+
+    const internalLinksInstruction =
+      internalLinks.length > 0
+        ? `Kalau relevan dan belum ada, kamu BOLEH menyisipkan tautan internal markdown [teks](URL) ke dalam paragraf "content", tapi HANYA gunakan URL yang tercantum PERSIS di daftar berikut — jangan pernah mengarang atau mengubah URL:\n${internalLinks.map((l) => `- ${l.url}: ${l.description}`).join("\n")}`
+        : null;
+
+    const systemPrompt = [
+      "Kamu adalah editor SEO untuk blog perusahaan ChatHub (platform omnichannel, AI chatbot, dan CRM).",
+      "Tugasmu MEREVISI artikel yang SUDAH ADA agar skor SEO-nya naik pada audit berikutnya — bukan menulis artikel baru dari nol.",
+      `Berikut feedback dari auditor SEO yang WAJIB kamu tindak lanjuti secara konkret: "${feedback}"`,
+      "Perbaiki khususnya: penempatan kata kunci utama (topik) di judul, paragraf pembuka, dan tersebar wajar di isi tanpa keyword-stuffing; panjang judul idealnya 50-60 karakter; excerpt sebagai meta description idealnya 120-160 karakter; struktur paragraf dan keterbacaan; orisinalitas konten.",
+      "JANGAN mengubah topik, fakta, atau maksud artikel, dan JANGAN memperpendek isi secara signifikan — pertahankan informasi yang sudah ada, cukup tulis ulang bagian yang perlu agar lebih SEO-friendly sambil tetap terbaca natural (bukan tulisan robotik/keyword-stuffing).",
+      `Kembalikan revisi untuk PERSIS locale yang diberikan, tidak kurang tidak lebih: ${locales.join(", ")}. Setiap locale tetap harus jadi tulisan asli yang natural untuk bahasa itu, bukan terjemahan kaku dari locale lain.`,
+      "Setiap paragraf di \"content\" HARUS berupa teks polos (plain text) — JANGAN gunakan markdown sama sekali (tanpa **bold**, *italic*, heading #, atau bullet list), kecuali format link internal di instruksi di bawah kalau ada.",
+      internalLinksInstruction,
+      "Balas HANYA dengan JSON valid tanpa markdown code fence, dengan bentuk persis:",
+      `{"translations": [{"locale": string, "title": string, "excerpt": string, "content": string[]}, ...]}`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const userContent = translations
+      .map(
+        (t) =>
+          `Locale ${t.locale}:\nJudul (${t.title.length} karakter): ${t.title}\nExcerpt (${t.excerpt.length} karakter): ${t.excerpt}\nIsi artikel:\n${t.content.join("\n\n")}`,
+      )
+      .join("\n\n---\n\n");
+
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        model: env.openrouter.textModel,
+        response_format: { type: "json_object" },
+        max_tokens: 6000,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Topik artikel: ${topic}\n\n${userContent}` },
+        ],
+      }),
+    });
+
+    const body = (await res.json().catch(() => null)) as {
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
+      error?: { message?: string };
+    } | null;
+
+    if (!res.ok) {
+      throw new HttpError(502, body?.error?.message ?? "Failed to revise article via OpenRouter");
+    }
+
+    const choice = body?.choices?.[0];
+    if (choice?.finish_reason === "error" || choice?.error) {
+      console.error("[openrouter] provider returned a generation error:", JSON.stringify(choice?.error));
+      throw new HttpError(502, `OpenRouter provider error while revising the article: ${JSON.stringify(choice?.error)}`);
+    }
+
+    const raw = choice?.message?.content;
+    if (!raw) throw new HttpError(502, "OpenRouter returned an empty article revision response");
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.error("[openrouter] failed to parse article revision JSON, raw response:", raw);
+      throw new HttpError(502, "OpenRouter returned invalid JSON for the article revision");
+    }
+
+    const revised = (parsed as { translations?: unknown })?.translations;
+    if (!Array.isArray(revised) || revised.length === 0 || !revised.every(isValidTranslation)) {
+      throw new HttpError(502, "OpenRouter article revision response is missing required translation fields");
+    }
+
+    return { translations: revised };
+  },
+
   // Separate call from generateArticle (fresh context, "reviewer" persona)
   // rather than asking the writer model to grade its own output in the same
   // completion — a model self-scoring inline tends to be overly generous.

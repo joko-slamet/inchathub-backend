@@ -24,7 +24,7 @@ const MARKDOWN_ITALIC_PATTERN = /\*([^*]+)\*/g;
 // exact match against the admin's list is unwrapped back to plain text
 // before the article is ever saved, so a hallucinated or broken link can
 // never reach a published page.
-function sanitizeInternalLinks(paragraphs: string[], allowedLinks: InternalLink[]): string[] {
+export function sanitizeInternalLinks(paragraphs: string[], allowedLinks: InternalLink[]): string[] {
   const allowedUrls = new Set(allowedLinks.map((l) => l.url));
   return paragraphs.map((paragraph) =>
     paragraph.replace(MARKDOWN_LINK_PATTERN, (match, text: string, url: string) =>
@@ -37,7 +37,7 @@ function sanitizeInternalLinks(paragraphs: string[], allowedLinks: InternalLink[
 // LinkifiedText, which only understands the link syntax above) — the model
 // is told not to use markdown emphasis, but strip it here too in case it
 // slips through anyway, so raw "**"/"*" never show up on the published page.
-function stripMarkdownEmphasis(paragraphs: string[]): string[] {
+export function stripMarkdownEmphasis(paragraphs: string[]): string[] {
   return paragraphs.map((paragraph) =>
     paragraph.replace(MARKDOWN_BOLD_PATTERN, "$1").replace(MARKDOWN_ITALIC_PATTERN, "$1"),
   );

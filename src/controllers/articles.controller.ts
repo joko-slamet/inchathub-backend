@@ -126,6 +126,12 @@ export const articlesController = {
     res.status(204).send();
   },
 
+  async improveSeo(req: Request, res: Response) {
+    const id = parseId(req.params.id);
+    const article = await articlesService.improveSeo(id);
+    res.json(article);
+  },
+
   async generateNow(_req: Request, res: Response) {
     const article = await articlesService.generateNow();
     res.status(201).json(article);

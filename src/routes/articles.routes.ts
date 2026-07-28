@@ -27,6 +27,12 @@ articlesRouter.patch(
   authorize(Role.ADMIN),
   asyncHandler(articlesController.update),
 );
+articlesRouter.post(
+  "/:id/improve-seo",
+  authenticate,
+  authorize(Role.ADMIN),
+  asyncHandler(articlesController.improveSeo),
+);
 articlesRouter.delete(
   "/:id",
   authenticate,

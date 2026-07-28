@@ -3,7 +3,7 @@ import path from "node:path";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middlewares/errorHandler";
 import { aiArticleConfigService, type InternalLink } from "./ai-article-config.service";
-import { articleGenerationService } from "./article-generation.service";
+import { articleGenerationService, sanitizeInternalLinks, stripMarkdownEmphasis } from "./article-generation.service";
 import { openrouterService } from "./openrouter.service";
 import { getJakartaParts } from "../utils/jakarta-time";
 
@@ -84,6 +84,40 @@ export const articlesService = {
       data: seo ? { seoScore: seo.score, seoFeedback: seo.feedback } : {},
       include: { translations: true },
     });
+  },
+
+  // Rewrites the article's text to address its current seoFeedback, then
+  // re-scores it the same way a manual edit does — the admin can keep
+  // clicking this until the score is where they want it, without hand-editing
+  // every locale themselves.
+  async improveSeo(id: string) {
+    const existing = await prisma.article.findUnique({ where: { id }, include: { translations: true } });
+    if (!existing) throw new HttpError(404, "Article not found");
+    if (!existing.seoFeedback) {
+      throw new HttpError(400, "Artikel ini belum memiliki feedback SEO untuk dijadikan acuan revisi");
+    }
+
+    const config = await aiArticleConfigService.getOrCreate();
+    const draft = await openrouterService.reviseArticleSeo({
+      topic: existing.topic,
+      feedback: existing.seoFeedback,
+      translations: existing.translations.map((t) => ({
+        locale: t.locale,
+        title: t.title,
+        excerpt: t.excerpt,
+        content: t.content,
+      })),
+      internalLinks: config.internalLinks as InternalLink[],
+    });
+
+    const revisedTranslations = draft.translations.map((t) => ({
+      locale: t.locale,
+      title: t.title,
+      excerpt: t.excerpt,
+      content: sanitizeInternalLinks(stripMarkdownEmphasis(t.content), config.internalLinks as InternalLink[]),
+    }));
+
+    return this.updateTranslations(id, revisedTranslations);
   },
 
   // Powers the "related articles" strip on a blog detail page — queried
