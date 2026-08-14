@@ -4,7 +4,7 @@ import { prisma } from "../config/prisma";
 import { HttpError } from "../middlewares/errorHandler";
 import { aiArticleConfigService, type InternalLink } from "./ai-article-config.service";
 import { articleGenerationService, sanitizeInternalLinks, stripMarkdownEmphasis } from "./article-generation.service";
-import { openrouterService } from "./openrouter.service";
+import { openaiService } from "./openai.service";
 import { getJakartaParts } from "../utils/jakarta-time";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "articles");
@@ -72,7 +72,7 @@ export const articlesService = {
     // same as during generation — a scoring failure shouldn't stop the edit
     // from being saved.
     const primary = translations.find((t) => t.locale === "id") ?? translations[0];
-    const seo = await openrouterService
+    const seo = await openaiService
       .scoreArticleSeo({ title: primary.title, excerpt: primary.excerpt, content: primary.content, topic: existing.topic })
       .catch((err) => {
         console.error("Failed to re-score article SEO:", err);
@@ -98,7 +98,7 @@ export const articlesService = {
     }
 
     const config = await aiArticleConfigService.getOrCreate();
-    const draft = await openrouterService.reviseArticleSeo({
+    const draft = await openaiService.reviseArticleSeo({
       topic: existing.topic,
       feedback: existing.seoFeedback,
       translations: existing.translations.map((t) => ({

@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma";
 import type { ArticleDayType } from "../generated/prisma/enums";
-import { openrouterService } from "./openrouter.service";
+import { openaiService } from "./openai.service";
 import { slugify } from "../utils/slug";
 import type { InternalLink } from "./ai-article-config.service";
 
@@ -45,7 +45,7 @@ export function stripMarkdownEmphasis(paragraphs: string[]): string[] {
 
 export const articleGenerationService = {
   async generateAndSave(topic: string, dayType: ArticleDayType, prompt: string, internalLinks: InternalLink[] = []) {
-    const draft = await openrouterService.generateArticle({ topic, prompt, internalLinks });
+    const draft = await openaiService.generateArticle({ topic, prompt, internalLinks });
     draft.translations = draft.translations.map((t) => ({
       ...t,
       content: sanitizeInternalLinks(stripMarkdownEmphasis(t.content), internalLinks),
@@ -58,12 +58,12 @@ export const articleGenerationService = {
     // The article must always ship with an image — if generation fails here,
     // skip saving entirely rather than persisting an article without one.
     // The scheduler will simply try again at the next scheduled slot.
-    const imageUrl = await openrouterService.generateImage({ title: primary.title, topic });
+    const imageUrl = await openaiService.generateImage({ title: primary.title, topic });
 
     // Non-critical insight for the admin, not a requirement for the article
     // to be valid — unlike the cover image, a scoring failure shouldn't stop
     // the article from being saved.
-    const seo = await openrouterService
+    const seo = await openaiService
       .scoreArticleSeo({ title: primary.title, excerpt: primary.excerpt, content: primary.content, topic })
       .catch((err) => {
         console.error("Failed to score article SEO:", err);
