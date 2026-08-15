@@ -27,9 +27,9 @@ export const env = {
   // Publicly reachable base URL of THIS backend — used to build absolute
   // URLs for assets like AI-generated article images served from /uploads.
   apiPublicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${Number(process.env.PORT ?? 4000)}`,
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY ?? "",
-    textModel: process.env.OPENAI_TEXT_MODEL ?? "gpt-4o-mini",
-    imageModel: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1",
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+    textModel: process.env.OPENROUTER_TEXT_MODEL ?? "google/gemini-2.5-flash",
+    imageModel: process.env.OPENROUTER_IMAGE_MODEL ?? "google/gemini-2.5-flash-image-preview",
   },
 };

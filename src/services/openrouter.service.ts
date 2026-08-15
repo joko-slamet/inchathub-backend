@@ -5,20 +5,21 @@ import { env } from "../config/env";
 import { HttpError } from "../middlewares/errorHandler";
 import type { InternalLink } from "./ai-article-config.service";
 
-const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_IMAGE_URL = "https://api.openai.com/v1/images/generations";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "articles");
 
 function requireConfigured() {
-  if (!env.openai.apiKey) {
-    throw new HttpError(500, "OpenAI is not configured (missing OPENAI_API_KEY)");
+  if (!env.openrouter.apiKey) {
+    throw new HttpError(500, "OpenRouter is not configured (missing OPENROUTER_API_KEY)");
   }
 }
 
 function headers() {
   return {
-    Authorization: `Bearer ${env.openai.apiKey}`,
+    Authorization: `Bearer ${env.openrouter.apiKey}`,
     "Content-Type": "application/json",
+    "HTTP-Referer": env.clientOrigin,
+    "X-Title": "ChatHub Blog",
   };
 }
 
@@ -66,49 +67,7 @@ function isValidTranslation(value: unknown): value is ArticleTranslationContent 
   );
 }
 
-type ChatCompletionResponse = {
-  choices?: { message?: { content?: string }; finish_reason?: string }[];
-  error?: { message?: string };
-};
-
-async function chatCompletion(systemPrompt: string, userContent: string): Promise<string> {
-  const res = await fetch(OPENAI_CHAT_URL, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      model: env.openai.textModel,
-      response_format: { type: "json_object" },
-      // Two full locales x up to 10 paragraphs each, as JSON, comfortably
-      // exceeds most providers' default completion cap — without this the
-      // response gets cut off mid-string and JSON.parse fails below.
-      max_completion_tokens: 6000,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-    }),
-  });
-
-  const body = (await res.json().catch(() => null)) as ChatCompletionResponse | null;
-  if (!res.ok) {
-    throw new HttpError(502, body?.error?.message ?? "Failed to call OpenAI");
-  }
-
-  const choice = body?.choices?.[0];
-  if (choice?.finish_reason === "length") {
-    console.error("[openai] completion was truncated (finish_reason=length)");
-    throw new HttpError(502, "OpenAI response was truncated before completing the article");
-  }
-  if (choice?.finish_reason === "content_filter") {
-    throw new HttpError(502, "OpenAI declined to generate this article (content filter)");
-  }
-
-  const raw = choice?.message?.content;
-  if (!raw) throw new HttpError(502, "OpenAI returned an empty response");
-  return raw;
-}
-
-export const openaiService = {
+export const openrouterService = {
   async generateArticle({
     topic,
     prompt,
@@ -148,23 +107,60 @@ export const openaiService = {
     ]
       .filter(Boolean)
       .join(" ");
+    console.log(systemPrompt)
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        model: env.openrouter.textModel,
+        response_format: { type: "json_object" },
+        // Two full locales x up to 10 paragraphs each, as JSON, comfortably
+        // exceeds most providers' default completion cap — without this the
+        // response gets cut off mid-string and JSON.parse fails below.
+        max_tokens: 6000,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Topik artikel: ${topic}` },
+        ],
+      }),
+    });
+    const body = (await res.json().catch(() => null)) as {
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
+      error?: { message?: string };
+    } | null;
+    if (!res.ok) {
+      throw new HttpError(502, body?.error?.message ?? "Failed to generate article text via OpenRouter");
+    }
 
-    const raw = await chatCompletion(systemPrompt, `Topik artikel: ${topic}`);
+    // OpenRouter can return HTTP 200 while a per-choice generation still
+    // failed upstream (e.g. the provider errored out) — finish_reason
+    // "error" with a populated `error` field, and message.content left as
+    // a leftover fragment (which would otherwise fail JSON.parse below with
+    // a confusing "invalid JSON" message that hides the real cause).
+    const choice = body?.choices?.[0];
+    if (choice?.finish_reason === "error" || choice?.error) {
+      console.error("[openrouter] provider returned a generation error:", JSON.stringify(choice?.error));
+      throw new HttpError(502, `OpenRouter provider error while generating the article: ${JSON.stringify(choice?.error)}`);
+    }
+
+    const raw = choice?.message?.content;
+    if (!raw) throw new HttpError(502, "OpenRouter returned an empty article response");
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
       // response_format: json_object should guarantee valid JSON for a
-      // successful generation, so a parse failure here almost always means
-      // the completion got cut off mid-response (token limit).
-      console.error("[openai] failed to parse article JSON, raw response:", raw);
-      throw new HttpError(502, "OpenAI returned invalid JSON for the article");
+      // successful generation, so a parse failure here (after the error
+      // check above already ruled out a provider-side error) almost always
+      // means the completion got cut off mid-response (token limit).
+      console.error("[openrouter] failed to parse article JSON, raw response:", raw);
+      throw new HttpError(502, "OpenRouter returned invalid JSON for the article");
     }
 
     const translations = (parsed as { translations?: unknown })?.translations;
     if (!Array.isArray(translations) || translations.length === 0 || !translations.every(isValidTranslation)) {
-      throw new HttpError(502, "OpenAI article response is missing required translation fields");
+      throw new HttpError(502, "OpenRouter article response is missing required translation fields");
     }
 
     return { translations };
@@ -216,19 +212,49 @@ export const openaiService = {
       )
       .join("\n\n---\n\n");
 
-    const raw = await chatCompletion(systemPrompt, `Topik artikel: ${topic}\n\n${userContent}`);
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        model: env.openrouter.textModel,
+        response_format: { type: "json_object" },
+        max_tokens: 6000,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Topik artikel: ${topic}\n\n${userContent}` },
+        ],
+      }),
+    });
+
+    const body = (await res.json().catch(() => null)) as {
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
+      error?: { message?: string };
+    } | null;
+
+    if (!res.ok) {
+      throw new HttpError(502, body?.error?.message ?? "Failed to revise article via OpenRouter");
+    }
+
+    const choice = body?.choices?.[0];
+    if (choice?.finish_reason === "error" || choice?.error) {
+      console.error("[openrouter] provider returned a generation error:", JSON.stringify(choice?.error));
+      throw new HttpError(502, `OpenRouter provider error while revising the article: ${JSON.stringify(choice?.error)}`);
+    }
+
+    const raw = choice?.message?.content;
+    if (!raw) throw new HttpError(502, "OpenRouter returned an empty article revision response");
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      console.error("[openai] failed to parse article revision JSON, raw response:", raw);
-      throw new HttpError(502, "OpenAI returned invalid JSON for the article revision");
+      console.error("[openrouter] failed to parse article revision JSON, raw response:", raw);
+      throw new HttpError(502, "OpenRouter returned invalid JSON for the article revision");
     }
 
     const revised = (parsed as { translations?: unknown })?.translations;
     if (!Array.isArray(revised) || revised.length === 0 || !revised.every(isValidTranslation)) {
-      throw new HttpError(502, "OpenAI article revision response is missing required translation fields");
+      throw new HttpError(502, "OpenRouter article revision response is missing required translation fields");
     }
 
     return { translations: revised };
@@ -258,28 +284,59 @@ export const openaiService = {
       '{"score": number (0-100, skor SEO keseluruhan), "feedback": string (2-4 kalimat saran perbaikan SEO yang konkret dan actionable, dalam Bahasa Indonesia)}',
     ].join(" ");
 
-    const raw = await chatCompletion(
-      systemPrompt,
-      `Topik: ${topic}\nJudul (${title.length} karakter): ${title}\nExcerpt (${excerpt.length} karakter): ${excerpt}\nIsi artikel:\n${content.join("\n\n")}`,
-    );
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        model: env.openrouter.textModel,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Topik: ${topic}\nJudul (${title.length} karakter): ${title}\nExcerpt (${excerpt.length} karakter): ${excerpt}\nIsi artikel:\n${content.join("\n\n")}`,
+          },
+        ],
+      }),
+    });
+
+    const body = (await res.json().catch(() => null)) as {
+      choices?: { message?: { content?: string }; finish_reason?: string; error?: unknown }[];
+      error?: { message?: string };
+    } | null;
+
+    if (!res.ok) {
+      throw new HttpError(502, body?.error?.message ?? "Failed to score article SEO via OpenRouter");
+    }
+
+    const scoreChoice = body?.choices?.[0];
+    if (scoreChoice?.finish_reason === "error" || scoreChoice?.error) {
+      throw new HttpError(502, `OpenRouter provider error while scoring SEO: ${JSON.stringify(scoreChoice?.error)}`);
+    }
+
+    const raw = scoreChoice?.message?.content;
+    if (!raw) throw new HttpError(502, "OpenRouter returned an empty SEO score response");
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      throw new HttpError(502, "OpenAI returned invalid JSON for the SEO score");
+      throw new HttpError(502, "OpenRouter returned invalid JSON for the SEO score");
     }
 
     const { score, feedback } = parsed as { score?: unknown; feedback?: unknown };
     if (typeof score !== "number" || typeof feedback !== "string") {
-      throw new HttpError(502, "OpenAI SEO score response is missing required fields");
+      throw new HttpError(502, "OpenRouter SEO score response is missing required fields");
     }
 
     return { score: Math.max(0, Math.min(100, Math.round(score))), feedback };
   },
 
-  // Uses OpenAI's dedicated image generation endpoint (gpt-image-1), which
-  // returns base64-encoded image data directly rather than a hosted URL.
+  // Uses an image-output-capable model via the same chat completions endpoint
+  // (modalities: ["image", "text"]). Verify this request/response shape
+  // against current OpenRouter docs if the chosen model changes — image
+  // generation support and field names vary more across providers/models
+  // than plain text chat does.
   async generateImage({ title, topic }: { title: string; topic: string }): Promise<string> {
     requireConfigured();
 
@@ -289,31 +346,47 @@ export const openaiService = {
     // visually distinct cover while keeping brand color grading consistent.
     const scene = IMAGE_SCENES[Math.floor(Math.random() * IMAGE_SCENES.length)];
 
-    const res = await fetch(OPENAI_IMAGE_URL, {
+    const res = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({
-        model: env.openai.imageModel,
-        prompt: `Professional blog cover photo for an article titled "${title}" about "${topic}". Scene: ${scene}. Photorealistic professional photography — shot on a DSLR with natural lighting and shallow depth of field, editorial/corporate photography style. NOT an illustration, NOT a 3D render, NOT a cartoon or flat vector graphic. No text or letters anywhere in the image. Subtly incorporate the ChatHub brand's deep red (#be1e2d) as an accent within the scene (e.g. clothing, signage, or a UI screen visible in frame), with an overall neutral color grading of grays (#808184), near-black (#1a1618), and white.`,
-        size: "1536x1024",
+        model: env.openrouter.imageModel,
+        modalities: ["image", "text"],
+        messages: [
+          {
+            role: "user",
+            content: `Generate a professional blog cover photo for an article titled "${title}" about "${topic}". Scene: ${scene}. Photorealistic professional photography — shot on a DSLR with natural lighting and shallow depth of field, editorial/corporate photography style. NOT an illustration, NOT a 3D render, NOT a cartoon or flat vector graphic. No text or letters anywhere in the image. Subtly incorporate the ChatHub brand's deep red (#be1e2d) as an accent within the scene (e.g. clothing, signage, or a UI screen visible in frame), with an overall neutral color grading of grays (#808184), near-black (#1a1618), and white.`,
+          },
+        ],
       }),
     });
 
     const body = (await res.json().catch(() => null)) as {
-      data?: { b64_json?: string }[];
+      choices?: {
+        message?: { images?: { image_url?: { url?: string } }[] };
+        finish_reason?: string;
+        error?: unknown;
+      }[];
       error?: { message?: string };
     } | null;
 
     if (!res.ok) {
-      throw new HttpError(502, body?.error?.message ?? "Failed to generate article image via OpenAI");
+      throw new HttpError(502, body?.error?.message ?? "Failed to generate article image via OpenRouter");
     }
 
-    const base64 = body?.data?.[0]?.b64_json;
-    if (!base64) {
-      throw new HttpError(502, "OpenAI did not return an image for this article");
+    const imageChoice = body?.choices?.[0];
+    if (imageChoice?.finish_reason === "error" || imageChoice?.error) {
+      throw new HttpError(502, `OpenRouter provider error while generating the image: ${JSON.stringify(imageChoice?.error)}`);
     }
 
-    const filename = `${randomUUID()}.png`;
+    const dataUrl = imageChoice?.message?.images?.[0]?.image_url?.url;
+    if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+      throw new HttpError(502, "OpenRouter did not return an image for this article");
+    }
+
+    const [meta, base64] = dataUrl.split(",");
+    const extension = /data:image\/(\w+);base64/.exec(meta)?.[1] ?? "png";
+    const filename = `${randomUUID()}.${extension}`;
 
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(path.join(UPLOADS_DIR, filename), Buffer.from(base64, "base64"));
